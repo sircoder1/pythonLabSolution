@@ -10,8 +10,11 @@ COMMAND_SPEC = CommandSpec("groups", "None", "Lists current account group member
 
 class GroupsCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: List group memberships for the current account.
-        # 1. Require no arguments and select a Windows or POSIX approach.
-        # 2. On POSIX, include both supplementary groups and the primary group.
-        # 3. Resolve numeric IDs to names and return stable, sorted output.
-        raise NotImplementedError("Implement the groups command")
+        self.require_count(args, 0, COMMAND_SPEC.usage)
+        if os.name == "nt":
+            return run_platform_command(["whoami", "/groups"])
+        import grp
+
+        group_ids = set(os.getgroups())
+        group_ids.add(os.getgid())
+        return "\n".join(sorted(grp.getgrgid(group_id).gr_name for group_id in group_ids))

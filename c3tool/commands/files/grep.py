@@ -10,9 +10,15 @@ COMMAND_SPEC = CommandSpec("grep", "<filename> <regex>", "Shows matching lines a
 
 class GrepCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Search a text file with a regular expression.
-        # 1. Require a filename and regex, then validate both.
-        # 2. Convert regex compilation errors into CommandError messages.
-        # 3. Check each line while counting from line 1.
-        # 4. Return ``line_number: text`` rows or a no-match message.
-        raise NotImplementedError("Implement the grep command")
+        self.require_count(args, 2, COMMAND_SPEC.usage)
+        source = require_existing_file(args[0], context)
+        try:
+            pattern = re.compile(args[1])
+        except re.error as error:
+            raise CommandError(f"Invalid regular expression: {error}") from error
+        matches = []
+        with source.open("r", encoding="utf-8", errors="replace") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                if pattern.search(line):
+                    matches.append(f"{line_number}: {line.rstrip()}")
+        return "\n".join(matches) if matches else "No matches found."

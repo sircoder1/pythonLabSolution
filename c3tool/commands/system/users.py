@@ -10,9 +10,12 @@ COMMAND_SPEC = CommandSpec("users", "None", "Lists local user accounts.", "pytho
 
 class UsersCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: List local user accounts on Windows and Linux.
-        # 1. Require no arguments and branch on ``os.name``.
-        # 2. Windows may use ``run_platform_command`` with a native utility.
-        # 3. POSIX systems expose account records through Python's ``pwd`` module.
-        # 4. Return a labeled table with the most useful account fields.
-        raise NotImplementedError("Implement the users command")
+        self.require_count(args, 0, COMMAND_SPEC.usage)
+        if os.name == "nt":
+            return run_platform_command(["net", "user"])
+        import pwd
+
+        rows = ["USERNAME             UID    GID    HOME                         SHELL"]
+        for user in pwd.getpwall():
+            rows.append(f"{user.pw_name:20.20} {user.pw_uid:<6} {user.pw_gid:<6} {user.pw_dir:28.28} {user.pw_shell}")
+        return "\n".join(rows)

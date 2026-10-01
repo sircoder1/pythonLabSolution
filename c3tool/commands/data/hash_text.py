@@ -9,8 +9,6 @@ COMMAND_SPEC = CommandSpec("hashText", "<text>", "Calculates a SHA-256 text dige
 
 class HashTextCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Calculate a SHA-256 digest for supplied text.
-        # 1. Require at least one text argument.
-        # 2. Join arguments with spaces and encode the result as UTF-8 bytes.
-        # 3. Return the hexadecimal digest as a string.
-        raise NotImplementedError("Implement the hashText command")
+        if not args:
+            raise UsageError(f"Usage: {COMMAND_SPEC.usage}")
+        return hashlib.sha256(" ".join(args).encode("utf-8")).hexdigest()

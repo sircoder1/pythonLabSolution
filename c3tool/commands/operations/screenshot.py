@@ -9,10 +9,16 @@ COMMAND_SPEC = CommandSpec("screenshot", "None", "Captures a screenshot in the o
 
 class ScreenshotCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Capture the current graphical display with Pillow.
-        # 1. Require no arguments and import ImageGrab inside this method.
-        # 2. Ensure ``context.output_dir`` exists.
-        # 3. Create a unique UTC timestamped PNG filename.
-        # 4. Save the image and turn display/dependency failures into friendly errors.
-        # 5. Return the saved path so the web runner can show the artifact.
-        raise NotImplementedError("Implement the screenshot command")
+        self.require_count(args, 0, COMMAND_SPEC.usage)
+        try:
+            from PIL import ImageGrab
+        except ImportError as error:
+            raise FeatureUnavailable("Install Pillow to use screenshot") from error
+        context.output_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        destination = context.output_dir / f"screenshot-{timestamp}.png"
+        try:
+            ImageGrab.grab(all_screens=True).save(destination, format="PNG")
+        except Exception as error:
+            raise CommandError(f"Screenshot capture failed. Linux runners need an active graphical display: {error}") from error
+        return f"Screenshot saved to {destination}"

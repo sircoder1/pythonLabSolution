@@ -1,6 +1,6 @@
-# C3T Python Tools — Practice Template
+# C3T Python Tools
 
-A cross-platform, beginner-friendly command toolkit for the Obsidian Runner course. The framework is complete, but each command intentionally contains a guided implementation exercise instead of its finished solution.
+A cross-platform Python command toolkit used as the complete reference implementation for the Obsidian Runner course.
 
 Every command now lives in its own file under a category folder:
 
@@ -13,9 +13,7 @@ c3tool/commands/
   ...one module per command
 ```
 
-`script.py` asks `c3tool/discovery.py` to recursively walk those folders. Any module exposing a `COMMAND_SPEC` is registered automatically, so adding a command never requires editing a central command list. Implementations are loaded lazily, so one unfinished command does not prevent the CLI or unrelated completed commands from working.
-
-Every unfinished `run()` method ends with a controlled `NotImplementedError`. The CLI catches it and prints a helpful message instead of a traceback. As soon as a student replaces that line with a working implementation, that command can run independently on the website.
+`script.py` asks `c3tool/discovery.py` to recursively walk those folders. Any module exposing a `COMMAND_SPEC` is registered automatically, so adding a command never requires editing a central command list. Implementations are still loaded lazily when their command runs, so one unfinished command does not prevent unrelated commands from working.
 
 ## Setup
 
@@ -47,17 +45,9 @@ python3 script.py portScan 127.0.0.1 8000
 python3 script.py grep ./events.log "ERROR|WARN"
 ```
 
-Until the `commands` exercise is implemented, command contracts can be read directly from each file's `COMMAND_SPEC` and from the corresponding website level.
+Run `python3 script.py commands` for the complete command, argument, usage, and expected-output reference.
 
-## Completing a level
-
-1. Open the matching file under `c3tool/commands/<category>/`.
-2. Read its `COMMAND_SPEC` to understand the required inputs and output.
-3. Follow the numbered TODO comments inside `run()`.
-4. Replace the final `NotImplementedError` with your implementation.
-5. Run that command locally, commit it, and push it to the GitHub repository used by Obsidian Runner.
-
-The comments describe behavior rather than one mandatory solution. Students can choose their own loops, variables, formatting, and standard-library helpers as long as the command contract is satisfied.
+## Creating the student edition
 
 Keep the small framework intact:
 
@@ -67,13 +57,13 @@ Keep the small framework intact:
 - `c3tool/model.py`
 - `c3tool/registry.py`
 
-Each exercise has exactly one implementation file in `c3tool/commands/<category>/`. During template creation, its implementation body was replaced with:
+Each exercise has exactly one implementation file in `c3tool/commands/<category>/`. Keep its `COMMAND_SPEC`, then replace only the command class's `run` body with:
 
 ```python
-raise NotImplementedError("Implement this command")
+raise NotImplementedError("Rebuild this command")
 ```
 
-Do not remove `COMMAND_SPEC` or rename the command class. Those pieces allow recursive discovery and the website runner to locate the level. Remove or replace only the final `NotImplementedError` after implementing the method.
+The CLI will still start, list the command, and run all remaining implementations. The selected command will return a clear not-implemented error until the student rebuilds it.
 
 To add a brand-new command, copy one command module into any category folder, give it a unique `COMMAND_SPEC.name`, and point `COMMAND_SPEC.handler` at its command class. Recursive discovery handles the rest.
 
@@ -81,10 +71,8 @@ To add a brand-new command, copy one command module into any category folder, gi
 
 The `screenshot` command writes to `LAB_OUTPUT` when Obsidian Runner supplies it. Otherwise it writes to `./outputs`. Other commands write only to paths supplied on their command line.
 
-## Template checks
+## Tests
 
 ```bash
 python3 -m unittest discover -s tests -v
 ```
-
-These checks verify discovery and CLI stability. They intentionally allow the `example` command to be either unfinished or correctly completed, so the template remains testable during incremental work.

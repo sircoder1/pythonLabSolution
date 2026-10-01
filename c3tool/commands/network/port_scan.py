@@ -10,9 +10,10 @@ COMMAND_SPEC = CommandSpec("portScan", "<host> <port>", "Tests one TCP host and 
 
 class PortScanCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Test one TCP host and port only.
-        # 1. Require host and port arguments; validate the port with ``parse_port``.
-        # 2. Attempt a short ``socket.create_connection``.
-        # 3. Close successful sockets promptly with a context manager.
-        # 4. Return an open or closed/unreachable result instead of a traceback.
-        raise NotImplementedError("Implement the portScan command")
+        self.require_count(args, 2, COMMAND_SPEC.usage)
+        host, port = args[0], parse_port(args[1])
+        try:
+            with socket.create_connection((host, port), timeout=3):
+                return f"{host}:{port} is open"
+        except (OSError, socket.timeout) as error:
+            return f"{host}:{port} is closed or unreachable ({error})"

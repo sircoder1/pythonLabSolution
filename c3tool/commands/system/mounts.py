@@ -10,9 +10,17 @@ COMMAND_SPEC = CommandSpec("mounts", "None", "Shows mounted filesystems or logic
 
 class MountsCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: List mounted filesystems or logical drives.
-        # 1. Require no arguments and prefer psutil's partition information.
-        # 2. Add total/free space when the mount is readable.
-        # 3. Handle inaccessible mounts without failing the whole command.
-        # 4. Provide appropriate Windows and POSIX native-command fallbacks.
-        raise NotImplementedError("Implement the mounts command")
+        self.require_count(args, 0, COMMAND_SPEC.usage)
+        psutil = optional_psutil()
+        if psutil:
+            rows = ["DEVICE                         MOUNT                          TYPE       TOTAL        FREE"]
+            for partition in psutil.disk_partitions(all=False):
+                try:
+                    usage = psutil.disk_usage(partition.mountpoint)
+                    rows.append(f"{partition.device:30.30} {partition.mountpoint:30.30} {partition.fstype:10.10} {usage.total:<12} {usage.free}")
+                except (PermissionError, OSError):
+                    rows.append(f"{partition.device:30.30} {partition.mountpoint:30.30} {partition.fstype:10.10} unavailable")
+            return "\n".join(rows)
+        if os.name == "nt":
+            return run_platform_command(["wmic", "logicaldisk", "get", "caption,filesystem,freespace,size"])
+        return run_platform_command(["mount"])

@@ -11,9 +11,26 @@ COMMAND_SPEC = CommandSpec("ports", "None", "Lists local listening ports and ser
 
 class PortsCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: List local listening TCP ports and local UDP endpoints.
-        # 1. Require no arguments and try importing psutil inside this method.
-        # 2. Filter out connections that are not listening/local endpoints.
-        # 3. Resolve common service names when possible and include the PID.
-        # 4. If psutil is absent, use an OS-appropriate netstat fallback.
-        raise NotImplementedError("Implement the ports command")
+        self.require_count(args, 0, COMMAND_SPEC.usage)
+        try:
+            import psutil
+        except ImportError:
+            command = ["netstat", "-ano"] if os.name == "nt" else ["netstat", "-tulpen"]
+            try:
+                result = subprocess.run(command, capture_output=True, text=True, timeout=20, check=False)
+            except OSError as error:
+                raise FeatureUnavailable("Install psutil or provide netstat for the ports command") from error
+            return (result.stdout or result.stderr).strip()
+        rows = ["PROTO  ADDRESS                                      PORT   SERVICE          PID"]
+        for connection in psutil.net_connections(kind="inet"):
+            listening = connection.status == psutil.CONN_LISTEN or connection.type == socket.SOCK_DGRAM
+            if not connection.laddr or not listening:
+                continue
+            address, port = connection.laddr.ip, connection.laddr.port
+            protocol = "tcp" if connection.type == socket.SOCK_STREAM else "udp"
+            try:
+                service = socket.getservbyport(port, protocol)
+            except OSError:
+                service = "-"
+            rows.append(f"{protocol:6} {address:44.44} {port:<6} {service:16.16} {connection.pid or '-'}")
+        return "\n".join(rows)

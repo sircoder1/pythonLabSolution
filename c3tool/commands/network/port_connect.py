@@ -10,9 +10,22 @@ COMMAND_SPEC = CommandSpec("portConnect", "<host:port>", "Connects to a TCP port
 
 class PortConnectCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Connect to one ``host:port`` and read its banner.
-        # 1. Require one argument and parse it with ``parse_host_port``.
-        # 2. Use short connect/read timeouts and always close the socket.
-        # 3. Read in chunks with a sensible maximum so a service cannot stream forever.
-        # 4. Decode received bytes safely or report that no data arrived.
-        raise NotImplementedError("Implement the portConnect command")
+        self.require_count(args, 1, COMMAND_SPEC.usage)
+        host, port = parse_host_port(args[0])
+        chunks = []
+        try:
+            with socket.create_connection((host, port), timeout=4) as connection:
+                connection.settimeout(2)
+                while sum(map(len, chunks)) < 65536:
+                    try:
+                        chunk = connection.recv(min(4096, 65536 - sum(map(len, chunks))))
+                    except socket.timeout:
+                        break
+                    if not chunk:
+                        break
+                    chunks.append(chunk)
+        except OSError as error:
+            raise CommandError(f"Could not connect to {host}:{port}: {error}") from error
+        if not chunks:
+            return f"Connected to {host}:{port}; no data was received before timeout."
+        return b"".join(chunks).decode("utf-8", errors="replace")

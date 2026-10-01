@@ -11,9 +11,18 @@ COMMAND_SPEC = CommandSpec("permissions", "<file>", "Shows permissions and owner
 
 class PermissionsCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Describe a path's permissions and ownership.
-        # 1. Require and validate one path.
-        # 2. Use ``Path.stat`` and the ``stat`` module for symbolic/numeric modes.
-        # 3. On POSIX, resolve owner and group names; provide a Windows fallback.
-        # 4. Return labeled rows that are useful to a beginner reading the output.
-        raise NotImplementedError("Implement the permissions command")
+        self.require_count(args, 1, COMMAND_SPEC.usage)
+        target = expand_path(args[0], context)
+        if not target.exists():
+            raise CommandError(f"Path not found: {target}")
+        details = target.stat()
+        rows = [f"Path: {target}", f"Mode: {stat.filemode(details.st_mode)}", f"Numeric mode: {oct(stat.S_IMODE(details.st_mode))}"]
+        if os.name == "posix":
+            import grp
+            import pwd
+
+            rows.append(f"Owner: {pwd.getpwuid(details.st_uid).pw_name} ({details.st_uid})")
+            rows.append(f"Group: {grp.getgrgid(details.st_gid).gr_name} ({details.st_gid})")
+        else:
+            rows.append(f"Owner UID: {details.st_uid}")
+        return "\n".join(rows)

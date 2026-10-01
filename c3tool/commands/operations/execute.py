@@ -11,10 +11,26 @@ COMMAND_SPEC = CommandSpec("exec", "<command>", "Runs a command in Bash or Power
 
 class ExecCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Run a command through the platform's normal shell.
-        # 1. Require command text and join all command-line pieces.
-        # 2. Select non-interactive PowerShell on Windows or Bash elsewhere.
-        # 3. Capture stdout/stderr, enforce a timeout, and keep the exit code.
-        # 4. Raise friendly errors when the shell is absent or cannot start.
-        # 5. Return the captured sections; do not print from this method.
-        raise NotImplementedError("Implement the exec command")
+        if not args:
+            raise UsageError(f"Usage: {COMMAND_SPEC.usage}")
+        command = " ".join(args)
+        if os.name == "nt":
+            executable = shutil.which("pwsh") or shutil.which("powershell")
+            if not executable:
+                raise FeatureUnavailable("PowerShell was not found")
+            invocation = [executable, "-NoProfile", "-NonInteractive", "-Command", command]
+        else:
+            invocation = [shutil.which("bash") or "/bin/bash", "-lc", command]
+        try:
+            result = subprocess.run(invocation, capture_output=True, text=True, timeout=60, check=False)
+        except subprocess.TimeoutExpired as error:
+            raise CommandError("Command exceeded the 60-second timeout") from error
+        except OSError as error:
+            raise CommandError(f"Could not start the platform shell: {error}") from error
+        sections = []
+        if result.stdout:
+            sections.append(result.stdout.rstrip())
+        if result.stderr:
+            sections.append(f"[stderr]\n{result.stderr.rstrip()}")
+        sections.append(f"[exit code: {result.returncode}]")
+        return "\n".join(sections)

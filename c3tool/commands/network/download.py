@@ -11,10 +11,25 @@ COMMAND_SPEC = CommandSpec("download", "<source URL> [pathToSave]", "Downloads a
 
 class DownloadCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Download one HTTP/HTTPS URL safely.
-        # 1. Accept a URL plus an optional destination path.
-        # 2. Reject non-web schemes and derive a useful default filename.
-        # 3. Stream bytes in chunks instead of loading the whole response.
-        # 4. Remove a partial file if the transfer fails.
-        # 5. Return the byte count and final path.
-        raise NotImplementedError("Implement the download command")
+        self.require_range(args, 1, 2, COMMAND_SPEC.usage)
+        source = args[0]
+        parsed = urllib.parse.urlparse(source)
+        if parsed.scheme not in {"http", "https"}:
+            raise CommandError("download supports only HTTP and HTTPS URLs")
+        default_name = Path(urllib.parse.unquote(parsed.path)).name or "downloaded-file"
+        destination = Path(args[1]).expanduser() if len(args) == 2 else context.cwd / default_name
+        if not destination.is_absolute():
+            destination = context.cwd / destination
+        destination = destination.resolve(strict=False)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        request = urllib.request.Request(source, headers={"User-Agent": "C3T-Python-Tools/1.0"})
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response, destination.open("wb") as output:
+                total = 0
+                while chunk := response.read(65536):
+                    output.write(chunk)
+                    total += len(chunk)
+        except Exception as error:
+            destination.unlink(missing_ok=True)
+            raise CommandError(f"Download failed: {error}") from error
+        return f"Downloaded {total} bytes to {destination}"

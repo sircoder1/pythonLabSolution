@@ -8,9 +8,11 @@ COMMAND_SPEC = CommandSpec("del", "<filepath>", "Deletes one file or symbolic li
 
 class DeleteCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Safely delete exactly one file or symbolic link.
-        # 1. Require one path and resolve it with ``expand_path``.
-        # 2. Refuse normal directories; this exercise must never delete trees.
-        # 3. Report a missing path with CommandError.
-        # 4. Unlink the target and return a confirmation.
-        raise NotImplementedError("Implement the del command")
+        self.require_count(args, 1, COMMAND_SPEC.usage)
+        target = expand_path(args[0], context)
+        if target.is_dir() and not target.is_symlink():
+            raise CommandError("del removes files or symbolic links, not directories")
+        if not target.exists() and not target.is_symlink():
+            raise CommandError(f"Path not found: {target}")
+        target.unlink()
+        return f"Deleted {target}"

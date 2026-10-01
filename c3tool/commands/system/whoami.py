@@ -9,6 +9,5 @@ COMMAND_SPEC = CommandSpec("whoami", "None", "Prints the current account.", "pyt
 
 class WhoAmICommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Require no arguments and return the current account name.
-        # ``getpass`` provides a cross-platform way to find that name.
-        raise NotImplementedError("Implement the whoami command")
+        self.require_count(args, 0, COMMAND_SPEC.usage)
+        return getpass.getuser()

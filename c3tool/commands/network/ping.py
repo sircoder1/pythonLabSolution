@@ -10,9 +10,13 @@ COMMAND_SPEC = CommandSpec("ping", "<IP or hostname>", "Tests whether a host res
 
 class PingCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Run one platform-native ping against the supplied target.
-        # 1. Require exactly one IP address or hostname.
-        # 2. Windows and Linux use different count and timeout flags.
-        # 3. Capture output, enforce a short timeout, and inspect the exit code.
-        # 4. Return an online/offline summary plus useful command output.
-        raise NotImplementedError("Implement the ping command")
+        self.require_count(args, 1, COMMAND_SPEC.usage)
+        count_flag = "-n" if os.name == "nt" else "-c"
+        timeout_flag = ["-w", "2000"] if os.name == "nt" else ["-W", "2"]
+        try:
+            result = subprocess.run(["ping", count_flag, "1", *timeout_flag, args[0]], capture_output=True, text=True, timeout=8, check=False)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise CommandError(f"Ping failed to run: {error}") from error
+        state = "online" if result.returncode == 0 else "offline"
+        detail = (result.stdout or result.stderr).strip()
+        return f"{args[0]} is {state}\n{detail}"

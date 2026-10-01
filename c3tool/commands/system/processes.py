@@ -10,9 +10,16 @@ COMMAND_SPEC = CommandSpec("processes", "None", "Lists running processes.", "pyt
 
 class ProcessesCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Produce a process table with PID, user, name, and command.
-        # 1. Require no arguments and prefer ``optional_psutil``.
-        # 2. Processes can disappear while iterating, so handle those races.
-        # 3. If psutil is unavailable, run the correct native command for the OS.
-        # 4. Return text instead of printing inside the command.
-        raise NotImplementedError("Implement the processes command")
+        self.require_count(args, 0, COMMAND_SPEC.usage)
+        psutil = optional_psutil()
+        if psutil:
+            rows = ["PID      USER                 NAME                 COMMAND"]
+            for process in psutil.process_iter(("pid", "username", "name", "cmdline")):
+                try:
+                    info = process.info
+                    command = " ".join(info.get("cmdline") or [])
+                    rows.append(f"{info['pid']:<8} {(info.get('username') or '-'):20.20} {(info.get('name') or '-'):20.20} {command}")
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+            return "\n".join(rows)
+        return run_platform_command(["tasklist"] if os.name == "nt" else ["ps", "-eo", "pid,user,comm,args"])

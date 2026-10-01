@@ -12,9 +12,10 @@ COMMAND_SPEC = CommandSpec("hostinfo", "None", "Shows operating system and hardw
 
 class HostInfoCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Build a labeled summary of this computer.
-        # 1. Require no arguments.
-        # 2. Collect hostname, OS, version, architecture, Python, and CPU details.
-        # 3. If ``optional_psutil()`` returns a module, add memory information.
-        # 4. Use sensible fallback text when a platform cannot provide a value.
-        raise NotImplementedError("Implement the hostinfo command")
+        self.require_count(args, 0, COMMAND_SPEC.usage)
+        rows = [f"Hostname: {socket.gethostname()}", f"OS: {platform.system()} {platform.release()}", f"Version: {platform.version()}", f"Architecture: {platform.machine()}", f"Processor: {platform.processor() or 'unknown'}", f"Python: {platform.python_version()}", f"CPU count: {os.cpu_count() or 'unknown'}"]
+        psutil = optional_psutil()
+        if psutil:
+            memory = psutil.virtual_memory()
+            rows.extend((f"Memory total: {memory.total}", f"Memory available: {memory.available}"))
+        return "\n".join(rows)

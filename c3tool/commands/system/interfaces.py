@@ -10,9 +10,14 @@ COMMAND_SPEC = CommandSpec("interfaces", "None", "Lists network interfaces and a
 
 class InterfacesCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: List interface names, address families, and addresses.
-        # 1. Require no arguments.
-        # 2. Prefer psutil when available because it exposes every interface.
-        # 3. Provide a standard-library socket fallback when psutil is absent.
-        # 4. Return stable rows or a clear empty result.
-        raise NotImplementedError("Implement the interfaces command")
+        self.require_count(args, 0, COMMAND_SPEC.usage)
+        psutil = optional_psutil()
+        if psutil:
+            rows = []
+            for interface, addresses in sorted(psutil.net_if_addrs().items()):
+                for address in addresses:
+                    family = getattr(address.family, "name", str(address.family))
+                    rows.append(f"{interface:20} {family:12} {address.address}")
+            return "\n".join(rows) if rows else "No interfaces found."
+        addresses = sorted({item[4][0] for item in socket.getaddrinfo(socket.gethostname(), None)})
+        return "\n".join(f"host                 address      {address}" for address in addresses)

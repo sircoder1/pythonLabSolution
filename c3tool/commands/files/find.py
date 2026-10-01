@@ -11,9 +11,15 @@ COMMAND_SPEC = CommandSpec("find", "<filename> <folder>", "Recursively finds par
 
 class FindCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Recursively search a folder for partial filename matches.
-        # 1. Require a search fragment and a root folder.
-        # 2. Validate the folder before walking it.
-        # 3. Compare names case-insensitively and keep output deterministic.
-        # 4. Return matching full paths or a helpful no-results message.
-        raise NotImplementedError("Implement the find command")
+        self.require_count(args, 2, COMMAND_SPEC.usage)
+        needle = args[0].casefold()
+        root = expand_path(args[1], context)
+        if not root.is_dir():
+            raise CommandError(f"Directory not found: {root}")
+        matches = []
+        for current_root, directory_names, file_names in os.walk(root):
+            directory_names.sort(key=str.casefold)
+            for file_name in sorted(file_names, key=str.casefold):
+                if needle in file_name.casefold():
+                    matches.append(str(Path(current_root) / file_name))
+        return "\n".join(matches) if matches else "No matching files found."

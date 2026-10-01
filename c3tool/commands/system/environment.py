@@ -9,7 +9,5 @@ COMMAND_SPEC = CommandSpec("env", "None", "Lists environment variables.", "pytho
 
 class EnvironmentCommand(BaseCommand):
     def run(self, args, context: ToolContext) -> str:
-        # TODO: Require no arguments and format ``os.environ``.
-        # Sort by variable name and return one ``NAME=value`` entry per line.
-        # Remember that environment values are already strings.
-        raise NotImplementedError("Implement the env command")
+        self.require_count(args, 0, COMMAND_SPEC.usage)
+        return "\n".join(f"{name}={value}" for name, value in sorted(os.environ.items()))
